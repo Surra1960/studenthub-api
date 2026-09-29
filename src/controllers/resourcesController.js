@@ -11,7 +11,8 @@ async function getResourcesByCourse(req,res){
         });
     }
     try{
-        const result=await pool.query('select * from course_resources where course_id=$1',[course_id]);
+       const result=await pool.query(
+             'select * from course_resources where course_id=$1 order by resource_type, title', [course_id]);
      
         res.status(200).json({
             resources:result.rows
