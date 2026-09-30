@@ -231,9 +231,97 @@ async function getChapterQuestionsWithItems(req, res) {
     }
 }
 
+async function getQuestionAnswer(req, res) {
+    const question_id = Number(req.params.id);
+
+    if (!Number.isInteger(question_id) || question_id <= 0) {
+        return res.status(400).json({
+            message: "Invalid Question ID"
+        });
+    }
+
+    try {
+        const questionResult = await pool.query(
+            `SELECT
+                id,
+                question_type,
+                explanation
+             FROM practice_questions
+             WHERE id = $1`,
+            [question_id]
+        );
+
+        if (questionResult.rowCount === 0) {
+            return res.status(404).json({
+                message: "Question Not Found"
+            });
+        }
+
+        const question = questionResult.rows[0];
+
+        const itemsResult = await pool.query(
+            `SELECT
+                id,
+                option_text,
+                item_role,
+                item_data,
+                is_correct
+             FROM practice_question_items
+             WHERE question_id = $1
+             ORDER BY option_order NULLS LAST, id`,
+            [question_id]
+        );
+
+        const items = itemsResult.rows;
+
+        if (question.question_type === "multiple_choice") {
+            const correctItem = items.find(
+                (item) => item.is_correct === true
+            );
+
+            if (!correctItem) {
+                return res.status(404).json({
+                    message: "Answer Not Available"
+                });
+            }
+
+            return res.status(200).json({
+                answer: correctItem.option_text,
+                explanation: question.explanation
+            });
+        }
+
+        if (question.question_type === "matching") {
+            const pairs = items
+                .filter((item) => item.item_role === "matching_pair")
+                .map((item) => ({
+                    left: item.item_data.left,
+                    right: item.item_data.right
+                }));
+
+            return res.status(200).json({
+                answer: pairs,
+                explanation: question.explanation
+            });
+        }
+
+        return res.status(400).json({
+            message: "Answer reveal is not supported for this question type"
+        });
+
+    } catch (err) {
+        console.error(err);
+
+        res.status(500).json({
+            message: "Internal Server Error"
+        });
+    }
+}
+
 module.exports = {
     getChaptersByCourse,
     getQuestionsByChapter,
     getQuestionItems,
-    getChapterQuestionsWithItems
+    getChapterQuestionsWithItems,
+    getQuestionAnswer
 };

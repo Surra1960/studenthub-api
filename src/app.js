@@ -2,9 +2,12 @@
 const express = require("express");
 const cors=require("cors");
 const app = express();
-app.use(cors({
-    origin:'http://localhost:5173'
-}));
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
+    .split(",").map((origin) => origin.trim()).filter(Boolean);
+app.use(cors({ origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(null, false);
+} }));
 const announcementsRouter=require('./routes/announcements');
 
  const eventsRouter=require('./routes/events');
@@ -15,7 +18,7 @@ const announcementsRouter=require('./routes/announcements');
  const semestersRouter=require('./routes/semesters');
  const coursesRouter = require('./routes/courses');
  const practiceRoutes = require("./routes/practice");
-
+ const authRoutes = require("./routes/auth");
 app.use(express.json());
 
 
@@ -29,5 +32,6 @@ app.use('/program-years',programYearsRouter);
 app.use('/semesters', semestersRouter);
 app.use('/courses', coursesRouter);
 app.use("/practice", practiceRoutes);
+app.use("/auth", authRoutes);
 
 module.exports = app;
